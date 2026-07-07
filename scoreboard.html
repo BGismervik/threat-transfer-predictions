@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prediction Scoreboard — Beth Gismervik</title>
+<meta name="description" content="Live scoreboard of falsifiable predictions from the threat-transfer sequence study. Updated mechanically as conditions resolve.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1e2126;
+    --muted: #5d646e;
+    --paper: #ffffff;
+    --line: #e6e5e1;
+    --open: #8a6d1f;
+    --confirmed: #2f6b5f;
+    --falsified: #8f3b2a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 56px 22px 96px; }
+  .mono { font-family: "IBM Plex Mono", Menlo, monospace; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", Menlo, monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  h1 { font-size: 30px; line-height: 1.2; margin: 6px 0 26px; font-weight: 700; }
+  
+  .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin: 36px 0 44px;
+  }
+  .score-card {
+    border: 1px solid var(--line);
+    padding: 20px;
+    text-align: center;
+  }
+  .score-number {
+    font-family: "IBM Plex Mono", Menlo, monospace;
+    font-size: 48px;
+    font-weight: 700;
+    margin: 0 0 6px;
+  }
+  .score-label {
+    font-family: "IBM Plex Mono", Menlo, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  
+  .meta {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 0;
+    margin: 40px 0 36px;
+    font-family: "IBM Plex Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .meta-item {
+    margin: 6px 0;
+  }
+  
+  #loading {
+    font-family: "IBM Plex Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .footer {
+    margin-top: 48px;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    font-family: "IBM Plex Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  
+  a { color: inherit; }
+  
+  @media (max-width: 520px) {
+    .scoreboard { grid-template-columns: 1fr; }
+    .score-number { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Threat-Transfer Sequence Study · Scoreboard</div>
+  <h1>Prediction Scoreboard</h1>
+  
+  <div id="loading">Loading scoreboard...</div>
+  
+  <div class="scoreboard" id="scorecard-container"></div>
+  
+  <div class="meta">
+    <div class="meta-item"><strong>Registered:</strong> <span id="meta-registered">—</span></div>
+    <div class="meta-item"><strong>Last Updated:</strong> <span id="meta-updated">—</span></div>
+    <div class="meta-item"><strong>Protocol:</strong> <a href="/research/predictions/methodology/#resolution-protocol">Mechanical updates only; see methodology</a></div>
+  </div>
+  
+  <p>This scoreboard updates mechanically as prediction resolution conditions are met. For detailed entries, resolution statements, and original prediction text, see the <a href="/research/predictions/">complete prediction register</a>.</p>
+  
+  <p style="margin-top: 20px; font-size: 15px;">All counts are updated from the <a href="https://github.com/bethgismervik/threat-transfer-case-study">public GitHub repository</a> and timestamped. Archive snapshots of this page are maintained at <a href="https://web.archive.org">archive.org</a> after each update.</p>
+  
+  <div class="footer">
+    Methodology: <a href="/research/predictions/methodology/">see here</a> for resolution protocol, limitations, and audit status.<br>
+    Questions: beth@thisrealgoodlife.com
+  </div>
+</div>
+
+<script>
+// Fetch and parse the CSV
+async function loadScoreboard() {
+  try {
+    const response = await fetch('/research/predictions/predictions.csv');
+    const csvText = await response.text();
+    
+    const lines = csvText.trim().split('\n');
+    const headers = lines[0].split(',');
+    
+    const predictions = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim() === '') continue;
+      
+      const values = lines[i].split(',');
+      const row = {};
+      headers.forEach((header, idx) => {
+        row[header.trim()] = values[idx]?.trim() || '';
+      });
+      predictions.push(row);
+    }
+    
+    // Calculate counts
+    const counts = {
+      registered: predictions.length,
+      open: predictions.filter(p => p.status === 'open').length,
+      confirmed: predictions.filter(p => p.status === 'confirmed').length,
+      falsified: predictions.filter(p => p.status === 'falsified').length
+    };
+    
+    // Find latest update date
+    const allDates = predictions
+      .filter(p => p.resolved_date && p.resolved_date !== '')
+      .map(p => new Date(p.resolved_date))
+      .sort((a, b) => b - a);
+    
+    const latestUpdate = allDates.length > 0 
+      ? allDates[0].toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      : 'No resolutions yet';
+    
+    // Render scorecards
+    const container = document.getElementById('scorecard-container');
+    container.innerHTML = `
+      <div class="score-card">
+        <div class="score-number">${counts.registered}</div>
+        <div class="score-label">Registered</div>
+      </div>
+      <div class="score-card">
+        <div class="score-number">${counts.open}</div>
+        <div class="score-label">Open</div>
+      </div>
+      <div class="score-card">
+        <div class="score-number">${counts.confirmed}</div>
+        <div class="score-label">Confirmed</div>
+      </div>
+      <div class="score-card">
+        <div class="score-number">${counts.falsified}</div>
+        <div class="score-label">Falsified</div>
+      </div>
+    `;
+    
+    // Update metadata
+    document.getElementById('meta-registered').textContent = new Date('2026-07-03').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('meta-updated').textContent = latestUpdate;
+    document.getElementById('loading').style.display = 'none';
+    
+  } catch (error) {
+    document.getElementById('loading').innerHTML = '<strong>Error loading scoreboard.</strong> The predictions.csv file may not be accessible. This is expected during initial setup.';
+    console.error('Error loading CSV:', error);
+  }
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadScoreboard);
+</script>
+</body>
+</html>

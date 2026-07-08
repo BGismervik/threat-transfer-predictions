@@ -17,6 +17,6 @@ Public register of falsifiable predictions locked and timestamped **July 7, 2026
 
 ---
 
-For methodology and case study documentation, see bethgismervik.com/research/
+This register is hosted at research.bethgismervik.com. For methodology and case study documentation, see the same domain.
 
 **Register locked July 7, 2026**
